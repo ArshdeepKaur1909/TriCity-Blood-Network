@@ -29,6 +29,10 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 // ─── 2. MIDDLEWARE ───────────────────────────────────────────────
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} request to ${req.url}`);
+  next();
+});
 connectDB();
 
 // ─── 3. REST API ROUTES ──────────────────────────────────────────
@@ -184,6 +188,6 @@ io.on('connection', (socket) => {
 
 // ─── 5. START SERVER ─────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-http.listen(PORT, '0.0.0.0', () => { // '0.0.0.0' allows cross-laptop access
-  console.log(`🚀 HemoGlobe Live Network on port ${PORT}`);
+http.listen(PORT, () => {
+  console.log(`🚀 TriCity Blood Network active on port ${PORT}`);
 });
