@@ -90,55 +90,52 @@ io.on('connection', (socket) => {
   console.log('📡 Hospital Node Linked:', socket.id);
 
   // A. HOSPITAL BROADCASTS CODE RED
-  socket.on('send_emergency', (alertPayload) => {
-    const auctionId = alertPayload.id; 
-    
-    // Open the auction
-    activeAuctions[auctionId] = {
-      requester: alertPayload,
-      bidders: [], // Hospitals that click "Accept"
-      status: 'OPEN'
-    };
-
-    console.log(`🚨 CODE RED INITIATED by ${alertPayload.hospital} (ID: ${auctionId})`);
-    
-    // Broadcast alert to all OTHER hospitals
-    socket.broadcast.emit('receive_emergency', alertPayload);
-
-    // B. THE TIMER: Wait 15 seconds, then pick the closest hospital
-    setTimeout(() => {
-      const auction = activeAuctions[auctionId];
-      if (!auction || auction.status !== 'OPEN') return; // Might have been aborted
-
-      auction.status = 'CLOSED';
-      console.log(`⏱️ Auction ${auctionId} closed. Bids: ${auction.bidders.length}`);
-
-      if (auction.bidders.length === 0) {
-        // No one answered in time
-        console.log(`❌ No bids for ${auctionId}`);
-        io.emit('auction_failed', { auctionId });
-      } else {
-        // Find the closest hospital
-        let winner = auction.bidders[0];
-        for (let i = 1; i < auction.bidders.length; i++) {
-          if (auction.bidders[i].distance < winner.distance) {
-            winner = auction.bidders[i];
-          }
-        }
-
-        console.log(`🏆 WINNER: ${winner.hospitalInfo.name} (${winner.distance.toFixed(2)} km)`);
-
-        // Tell everyone who won!
-        io.emit('auction_resolved', {
-          auctionId: auctionId,
-          winnerInfo: winner.hospitalInfo,
-          requesterInfo: auction.requester
-        });
-      }
-
-      delete activeAuctions[auctionId]; // Clean up
-    }, 15000); // 15 seconds for the demo
+  // ADD THIS: Maps the socket to a specific Hospital ID
+  socket.on('join_network', (hfid) => {
+    socket.hfid = hfid; 
+    console.log(`🔗 Hospital ${hfid} is now online and mapped.`);
   });
+
+  socket.on('send_emergency', async (alertPayload) => {
+  const { id: auctionId, bloodGroup, unitsRequired } = alertPayload; 
+  
+  activeAuctions[auctionId] = {
+    requester: alertPayload,
+    bidders: [],
+    status: 'OPEN'
+  };
+
+  console.log(`🚨 CODE RED: ${alertPayload.hospital} needs ${unitsRequired} units of ${bloodGroup}`);
+
+  try {
+    // 1. Find hospitals that have enough stock (Dynamic Query)
+    const stockKey = `bloodStock.${bloodGroup}`;
+    const capableHospitals = await Organization.find({
+      [stockKey]: { $gte: unitsRequired }
+    });
+
+    // 2. Get all currently connected sockets
+    const allSockets = await io.fetchSockets();
+
+    // 3. Targeted Alerting
+    capableHospitals.forEach(hospital => {
+      const target = allSockets.find(s => s.hfid === hospital.hfid);
+      if (target && target.id !== socket.id) { // Don't alert the sender
+        target.emit('receive_emergency', alertPayload);
+      }
+    });
+
+    // Optional Fallback: If no one has enough, alert everyone for partial help
+    if (capableHospitals.length === 0) {
+      socket.broadcast.emit('receive_emergency', alertPayload);
+    }
+
+  } catch (error) {
+    console.error("Filtering Error:", error);
+  }
+
+  // ... Keep your 15-second setTimeout winner logic here
+});
 
   // C. A HOSPITAL CLICKS "ACCEPT"
   socket.on('accept_emergency', async (bidData) => {
