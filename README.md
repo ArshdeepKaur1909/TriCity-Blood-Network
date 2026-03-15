@@ -1,4 +1,4 @@
-HemoGlobe — Emergency Blood Logistics Handling Platform
+# HemoGlobe — Emergency Blood Logistics Handling Platform
 
 HemoGlobe is a **real-time emergency coordination platform** that **bridges the gap between hospitals and blood banks**. By replacing slow, manual phone calls with an automated Geo-Auction Engine, HemoGlobe ensures that life-saving blood units are sourced from the closest available facility in seconds, not minutes.
 
