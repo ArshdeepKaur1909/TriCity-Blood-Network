@@ -1,11 +1,6 @@
-# 🩸 HemoGlobe — Emergency Blood Logistics & Chain-of-Custody Network
+HemoGlobe — Emergency Blood Logistics Handling Platform
 
-HemoGlobe is a real-time, city-wide blood supply orchestration platform designed to eliminate delays in emergency blood delivery.  
-It connects hospitals, blood banks, couriers, nurses, and donors into a unified digital network that coordinates blood requests, transport, and verification from **Code Red declaration to safe bedside transfusion**.
-
-> **When seconds matter, blood should move as fast as information.**
-
----
+HemoGlobe is a **real-time emergency coordination platform** that **bridges the gap between hospitals and blood banks**. By replacing slow, manual phone calls with an automated Geo-Auction Engine, HemoGlobe ensures that life-saving blood units are sourced from the closest available facility in seconds, not minutes.
 
 # 🚨 Problem
 
