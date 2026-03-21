@@ -13,7 +13,7 @@ const io = require('socket.io')(http, {
   cors: { 
     origin: [
       "http://localhost:5173", // For your local testing
-      "https://tricity-blood-network.onrender.com/" // PASTE YOUR VERCEL LINK HERE
+      "https://tricity-blood-network.vercel.app" // PASTE YOUR VERCEL LINK HERE
     ],
     methods: ["GET", "POST"]
   }
@@ -34,7 +34,10 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 // ─── 2. MIDDLEWARE ───────────────────────────────────────────────
-app.use(cors());
+app.use(cors({
+  origin: "https://tricity-blood-network.vercel.app",
+  methods: ["GET", "POST"]
+}));
 app.use(express.json());
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} request to ${req.url}`);
