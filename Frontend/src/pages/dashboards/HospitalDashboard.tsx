@@ -5,7 +5,7 @@ import EmergencyMap, { type MapPhase } from '../../components/EmergencyMap';
 import { io } from 'socket.io-client';
 
 // ⚠️ Ensure this IP matches your actual Wi-Fi IP
-const socket = io('http://10.51.2.106:5000'); 
+const socket = io('https://tricity-blood-network.onrender.com/'); 
 
 /* ─── UTILS & AUDIO SYNTH ───────────────────────────────────────────────── */
 // ... (Keeping your existing audio and util functions identical)
@@ -196,7 +196,7 @@ export default function HospitalDashboard() {
     const loggedInId = localStorage.getItem('loggedInHospitalId'); 
     if (!loggedInId) return;
 
-    fetch('http://10.51.2.106:5000/api/organizations')
+    fetch('https://tricity-blood-network.onrender.com//api/organizations')
       .then(res => res.json())
       .then(data => {
         const myHospital = data.find((org: any) => org._id === loggedInId);
@@ -353,7 +353,7 @@ export default function HospitalDashboard() {
     setEditingType(null);
     try {
       const loggedInId = localStorage.getItem('loggedInHospitalId');
-      await fetch(`http://10.51.2.106:5000/api/organizations/${loggedInId}/stock`, {
+      await fetch(`https://tricity-blood-network.onrender.com//api/organizations/${loggedInId}/stock`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bloodType: editingType, units: editVal })
       });
       addLog(`✅ Cloud sync complete: ${editingType} verified at ${editVal}u`, 'CONFIRM');

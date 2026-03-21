@@ -10,7 +10,13 @@ const app = express();
 // ─── 1. SOCKET.IO SETUP (MUST BE TOP LEVEL) ──────────────────────
 const http = require('http').createServer(app); // Wrap Express in HTTP
 const io = require('socket.io')(http, {
-  cors: { origin: "*" } // Allows collaborator's laptop to connect
+  cors: { 
+    origin: [
+      "http://localhost:5173", // For your local testing
+      "https://tricity-blood-network.onrender.com/" // PASTE YOUR VERCEL LINK HERE
+    ],
+    methods: ["GET", "POST"]
+  }
 });
 
 // ─── NEW: HAVERSINE DISTANCE FORMULA ─────────────────────────────
