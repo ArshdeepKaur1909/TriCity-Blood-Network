@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./db.js');
 const Organization = require('./models/Organization.js');
+const History = require('./models/History.js');
 require('dotenv').config();
 
 const app = express();
@@ -97,45 +98,106 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_emergency', async (alertPayload) => {
-  const { id: auctionId, bloodGroup, unitsRequired } = alertPayload; 
-  
-  activeAuctions[auctionId] = {
-    requester: alertPayload,
-    bidders: [],
-    status: 'OPEN'
-  };
+    // Note: adjusting variables to match both possible frontend payloads
+    const auctionId = alertPayload.id; 
+    const bloodGroup = alertPayload.blood || alertPayload.bloodGroup;
+    const unitsRequired = alertPayload.units || alertPayload.unitsRequired;
+    
+    activeAuctions[auctionId] = {
+      requester: alertPayload,
+      bidders: [],
+      status: 'OPEN'
+    };
 
-  console.log(`🚨 CODE RED: ${alertPayload.hospital} needs ${unitsRequired} units of ${bloodGroup}`);
+    console.log(`🚨 CODE RED: ${alertPayload.hospital} needs ${unitsRequired} units of ${bloodGroup}`);
 
-  try {
-    // 1. Find hospitals that have enough stock (Dynamic Query)
-    const stockKey = `bloodStock.${bloodGroup}`;
-    const capableHospitals = await Organization.find({
-      [stockKey]: { $gte: unitsRequired }
-    });
+    try {
+      // 1. Find hospitals that have enough stock (Dynamic Query)
+      const stockKey = `bloodStock.${bloodGroup}`;
+      const capableHospitals = await Organization.find({
+        [stockKey]: { $gte: unitsRequired }
+      });
 
-    // 2. Get all currently connected sockets
-    const allSockets = await io.fetchSockets();
+      // 2. Get all currently connected sockets
+      const allSockets = await io.fetchSockets();
 
-    // 3. Targeted Alerting
-    capableHospitals.forEach(hospital => {
-      const target = allSockets.find(s => s.hfid === hospital.hfid);
-      if (target && target.id !== socket.id) { // Don't alert the sender
-        target.emit('receive_emergency', alertPayload);
+      // 3. Targeted Alerting
+      capableHospitals.forEach(hospital => {
+        const target = allSockets.find(s => s.hfid === hospital.hfid);
+        if (target && target.id !== socket.id) { // Don't alert the sender
+          target.emit('receive_emergency', alertPayload);
+        }
+      });
+
+      // Fallback: If no one has enough, alert everyone for partial help
+      if (capableHospitals.length === 0) {
+        socket.broadcast.emit('receive_emergency', alertPayload);
       }
-    });
 
-    // Optional Fallback: If no one has enough, alert everyone for partial help
-    if (capableHospitals.length === 0) {
-      socket.broadcast.emit('receive_emergency', alertPayload);
+    } catch (error) {
+      console.error("Filtering Error:", error);
     }
 
-  } catch (error) {
-    console.error("Filtering Error:", error);
-  }
+    // ─── THE MISSING BRAIN: 15-Second Timer & Winner Selection ───
+    setTimeout(async () => {
+      const auction = activeAuctions[auctionId];
+      if (!auction || auction.status !== 'OPEN') return; // Might have been aborted
 
-  // ... Keep your 15-second setTimeout winner logic here
-});
+      auction.status = 'CLOSED';
+      console.log(`⏱️ Auction ${auctionId} closed. Bids: ${auction.bidders.length}`);
+
+      if (auction.bidders.length === 0) {
+        // No one answered in time
+        console.log(`❌ No bids for ${auctionId}`);
+        io.emit('auction_failed', { auctionId });
+      } else {
+        // Find the closest hospital
+        let winner = auction.bidders[0];
+        for (let i = 1; i < auction.bidders.length; i++) {
+          if (auction.bidders[i].distance < winner.distance) {
+            winner = auction.bidders[i];
+          }
+        }
+
+        console.log(`🏆 WINNER: ${winner.hospitalInfo.name} (${winner.distance.toFixed(2)} km)`);
+
+        // 🔥 LOG TO MONGODB HISTORY
+        try {
+          const logEntry = new History({
+            auctionId: auctionId,
+            requester: {
+              name: auction.requester.hospital,
+              bloodType: bloodGroup,
+              units: unitsRequired
+            },
+            winner: {
+              name: winner.hospitalInfo.name,
+              hfid: winner.hospitalInfo.id || winner.hospitalInfo.hfid,
+              distance: winner.distance
+            },
+            allBidders: auction.bidders.map(b => ({
+              name: b.hospitalInfo.name,
+              distance: b.distance
+            }))
+          });
+          
+          await logEntry.save();
+          console.log(`💾 Transaction ${auctionId} permanently archived to MongoDB.`);
+        } catch (dbErr) {
+          console.error("⚠️ Failed to save to History DB:", dbErr);
+        }
+
+        // Tell everyone who won!
+        io.emit('auction_resolved', {
+          auctionId: auctionId,
+          winnerInfo: winner.hospitalInfo,
+          requesterInfo: auction.requester
+        });
+      }
+
+      delete activeAuctions[auctionId]; // Clean up memory
+    }, 15000); // 15 seconds
+  });
 
   // C. A HOSPITAL CLICKS "ACCEPT"
   socket.on('accept_emergency', async (bidData) => {
