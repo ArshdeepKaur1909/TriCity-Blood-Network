@@ -196,7 +196,7 @@ export default function HospitalDashboard() {
     const loggedInId = localStorage.getItem('loggedInHospitalId'); 
     if (!loggedInId) return;
 
-    fetch('https://tricity-blood-network.onrender.com//api/organizations')
+    fetch('https://tricity-blood-network.onrender.com/api/organizations')
       .then(res => res.json())
       .then(data => {
         const myHospital = data.find((org: any) => org._id === loggedInId);
