@@ -84,11 +84,13 @@ export default function LoginPage() {
       : { name, hfid, password, address, contact };
 
     try {
-      const response = await fetch(`http://10.51.2.106:5000${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+const BASE_URL = "https://tricity-blood-network.onrender.com/"; 
+
+const response = await fetch(`${BASE_URL}${endpoint}`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload)
+});
 
       const data = await response.json();
 
